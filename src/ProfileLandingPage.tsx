@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { ConnectionInfo, PlayerSummary } from "./types";
-import { Users, Wifi, WifiOff, Activity, Clock, ExternalLink } from "lucide-react";
+import { Wifi, WifiOff, User } from "lucide-react";
 
 interface ProfileLandingPageProps {
   connectionInfo: ConnectionInfo | null;
@@ -19,9 +19,7 @@ const ProfileLandingPage: React.FC<ProfileLandingPageProps> = ({
   useEffect(() => {
     if (connectionInfo?.status === 'connected' && !hasSubscribed.current) {
       hasSubscribed.current = true;
-      // Subscribe to player summary updates
-      DeskThing.send({ type: 'subscribe', request: 'player-summaary' });
-      // Request initial player data
+      DeskThing.send({ type: 'subscribe', request: 'player-summary' });
       DeskThing.send({ type: 'requestPlayerSummary' });
     }
     
@@ -43,162 +41,119 @@ const ProfileLandingPage: React.FC<ProfileLandingPageProps> = ({
     return states[state] || states[0];
   };
 
-  const formatLastSeen = (timestamp: number) => {
-    if (!timestamp) return 'Unknown';
-    
-    const now = Date.now();
-    const lastSeenMs = timestamp * 1000;
-    const diff = now - lastSeenMs;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  const handleConnect = () => {
-    DeskThing.send({ type: 'connect' });
-  };
-
-  const handleDisconnect = () => {
-    DeskThing.send({ type: 'disconnect' });
-  };
-
-  const handleRefresh = () => {
-    DeskThing.send({ type: 'requestPlayerSummary' });
-  };
-
   const isConnected = connectionInfo?.status === 'connected';
-  const isConnecting = connectionInfo?.status === 'connecting';
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex flex-col">
-      
-      {/* Compact Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/20 backdrop-blur-sm border-b border-white/10">
-        <div className="flex items-center gap-2">
-          {isConnected ? (
-            <Wifi className="w-4 h-4 text-green-400" />
-          ) : (
-            <WifiOff className="w-4 h-4 text-red-400" />
-          )}
-          <span className={`text-sm font-medium ${
-            isConnected ? 'text-green-400' : 
-            isConnecting ? 'text-yellow-400' : 
-            'text-red-400'
-          }`}>
-            {connectionInfo?.status || 'Unknown'}
-          </span>
-        </div>
-        
-        <div className="flex gap-2">
-          {!isConnected && !isConnecting && (
-            <button
-              onClick={handleConnect}
-              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-            >
-              Connect
-            </button>
-          )}
-          {isConnected && (
-            <>
-              <button
-                onClick={handleRefresh}
-                className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={handleDisconnect}
-                className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-              >
-                Disconnect
-              </button>
-            </>
-          )}
-        </div>
+    <div className="w-full h-full bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex flex-col relative overflow-hidden">
+      {/* Animated background effect */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4">
-        
-        {/* Player Summary Card */}
+      {/* Connection Status - Top Left */}
+      <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+        {isConnected ? (
+          <>
+            <Wifi className="w-4 h-4 text-green-400" />
+            <span className="text-sm font-medium text-green-400">Connected</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-medium text-red-400">Disconnected</span>
+          </>
+        )}
+      </div>
+
+      {/* Main Content - Centered */}
+      <div className="relative z-10 flex items-center justify-center h-full">
         {playerSummary && isConnected ? (
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20">
-            <div className="flex gap-4">
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                <img
-                  src={playerSummary.avatarfull || playerSummary.avatarmedium || playerSummary.avatar}
-                  alt={playerSummary.personaname}
-                  className="w-24 h-24 rounded-lg border-2 border-white/20"
-                />
-                {/* Status Indicator */}
-                <div className={`absolute -bottom-1 -right-1 w-6 h-6 ${getPersonaStateInfo(playerSummary.personastate).bgColor} rounded-full border-4 border-slate-900`} />
-              </div>
-
-              {/* Player Info */}
-              <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-white mb-1 truncate">
-                  {playerSummary.personaname}
-                </h2>
-                <div className="flex items-center gap-2 mb-3">
-                  <Activity className={`w-3 h-3 ${getPersonaStateInfo(playerSummary.personastate).color}`} />
-                  <span className={`text-xs font-medium ${getPersonaStateInfo(playerSummary.personastate).color}`}>
-                    {getPersonaStateInfo(playerSummary.personastate).label}
-                  </span>
+          <div className="flex flex-col items-center gap-6">
+            {/* Profile Image */}
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full blur-2xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+              {playerSummary.avatar ? (
+                <div className="relative">
+                  <img
+                    src={playerSummary.avatarfull || playerSummary.avatarmedium || playerSummary.avatar}
+                    alt={playerSummary.personaname}
+                    className="relative rounded-full border-4 border-white/20 shadow-2xl"
+                    style={{
+                      width: '200px',   // EDIT: Profile image size
+                      height: '200px'
+                    }}
+                  />
+                  {/* Online Status Dot */}
+                  <div 
+                    className={`absolute bottom-2 right-2 ${getPersonaStateInfo(playerSummary.personastate).bgColor} rounded-full border-4 border-slate-950 shadow-lg`}
+                    style={{
+                      width: '40px',   // EDIT: Status indicator size
+                      height: '40px'
+                    }}
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-xs text-gray-400">Steam ID</div>
-                    <div className="text-white font-mono text-xs truncate">{playerSummary.steamid}</div>
-                  </div>
-
-                  {playerSummary.lastlogoff && (
-                    <div className="bg-white/5 rounded p-2">
-                      <div className="text-xs text-gray-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Last Seen
-                      </div>
-                      <div className="text-white text-xs">
-                        {formatLastSeen(playerSummary.lastlogoff)}
-                      </div>
-                    </div>
-                  )}
+              ) : (
+                <div 
+                  className="relative rounded-full bg-slate-800 flex items-center justify-center border-4 border-white/20"
+                  style={{
+                    width: '200px',
+                    height: '200px'
+                  }}
+                >
+                  <User className="w-24 h-24 text-gray-400" />
+                  <div 
+                    className={`absolute bottom-2 right-2 ${getPersonaStateInfo(playerSummary.personastate).bgColor} rounded-full border-4 border-slate-950 shadow-lg`}
+                    style={{
+                      width: '40px',
+                      height: '40px'
+                    }}
+                  />
                 </div>
+              )}
+            </div>
 
-                {playerSummary.profileurl && (
-                  <a
-                    href={playerSummary.profileurl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1 mt-3 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-xs"
-                  >
-                    View Profile
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-              </div>
+            {/* Player Name */}
+            <h1 
+              className="font-bold text-white drop-shadow-2xl text-center max-w-md"
+              style={{
+                fontSize: '48px'  // EDIT: Player name text size
+              }}
+            >
+              {playerSummary.personaname}
+            </h1>
+
+            {/* Online Status */}
+            <div 
+              className="flex items-center bg-white/10 backdrop-blur-xl rounded-full px-6 py-3 border border-white/20"
+            >
+              <div 
+                className={`w-3 h-3 ${getPersonaStateInfo(playerSummary.personastate).bgColor} rounded-full animate-pulse`}
+                style={{
+                  marginRight: '12px'  // EDIT: Gap between status dot and text (px)
+                }}
+              ></div>
+              <span 
+                className={`font-semibold ${getPersonaStateInfo(playerSummary.personastate).color}`}
+                style={{
+                  fontSize: '20px'  // EDIT: Status text size
+                }}
+              >
+                {getPersonaStateInfo(playerSummary.personastate).label}
+              </span>
             </div>
           </div>
-        ) : isConnected ? (
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20 text-center">
-            <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">Waiting for player data...</p>
-            <p className="text-gray-500 text-sm mt-1">Configure Steam ID in settings</p>
-          </div>
         ) : (
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 border border-white/20 text-center">
-            <WifiOff className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">Not connected to Steam API</p>
-            <p className="text-gray-500 text-sm mt-1">Click Connect to start tracking</p>
+          <div className="text-center">
+            <div className="text-6xl mb-4 opacity-20">👤</div>
+            <div className="text-2xl text-white/60 font-medium">
+              {isConnected ? 'Waiting for player data...' : 'Not Connected'}
+            </div>
+            <div className="text-sm text-white/40 mt-2">
+              {isConnected ? 'Configure Steam ID in settings' : 'Connect to Steam API to view profile'}
+            </div>
           </div>
         )}
-
       </div>
     </div>
   );

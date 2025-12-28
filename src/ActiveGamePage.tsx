@@ -57,7 +57,7 @@ const ActiveGamePage: React.FC<ActiveGamePageProps> = ({
   const isConnected = connectionInfo?.status === 'connected';
   const displaySeconds = getElapsedSeconds();
 
-  return (
+return (
     <div className="w-full h-full bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex flex-col relative overflow-hidden">
       {/* Animated background effect */}
       <div className="absolute inset-0 opacity-20">
@@ -68,8 +68,8 @@ const ActiveGamePage: React.FC<ActiveGamePageProps> = ({
       {gameSession && gameSession.gameId && isConnected ? (
         <div className="relative z-10 w-full h-full">
           {/* Now Playing label - top left */}
-          <div className="absolute top-4 left-4 flex items-center gap-2 text-emerald-400">
-            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <div className="absolute top-4 left-4 flex items-center gap-4 text-emerald-400">
+            <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
             <span className="text-sm font-medium">Now Playing</span>
           </div>
 
@@ -114,17 +114,31 @@ const ActiveGamePage: React.FC<ActiveGamePageProps> = ({
           >
             {/* Game title */}
             <div>
-              <h1 className="text-3xl font-bold text-white drop-shadow-lg leading-tight break-words max-w-md">
+              <h1 
+                className="font-bold text-white drop-shadow-lg leading-tight break-words max-w-md"
+                style={{
+                  fontSize: '6vw'  // EDIT: Game title text size (vw scales with screen)
+                }}
+              >
                 {gameSession.gameName}
               </h1>
             </div>
 
-            {/* Session timer */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Timer className="w-5 h-5 text-blue-400" />
-              </div>
-              <div className="text-5xl font-bold text-white font-mono tracking-wider drop-shadow-2xl">
+         {/* Session timer */}
+            <div className="flex items-center gap-5">
+              <Timer 
+                className="text-blue-400"
+                style={{
+                  width: '4vw',   // EDIT: Timer icon size (vw scales with screen)
+                  height: '4vw'
+                }}
+              />
+              <div 
+                className="font-bold text-white font-mono tracking-wider drop-shadow-2xl"
+                style={{
+                  fontSize: '5vw'  // EDIT: Timer text size (vw scales with screen)
+                }}
+              >
                 {formatTime(displaySeconds)}
               </div>
             </div>
@@ -134,63 +148,60 @@ const ActiveGamePage: React.FC<ActiveGamePageProps> = ({
           {/* Player profile - FREELY POSITIONABLE */}
           {playerSummary && (
             <div 
-              className="absolute"
+              className="absolute bg-slate-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl flex items-center"
               style={{
                 bottom: '3%',    // EDIT: Distance from bottom (% or px or vh)
-                right: '3%'      // EDIT: Distance from right (% or px or vw)
+                right: '3%',     // EDIT: Distance from right (% or px or vw)
+                padding: '20px'  // EDIT: Padding inside box (px for consistent sizing)
               }}
             >
-              <div 
-                className="bg-slate-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-xl flex items-center gap-6 w-fit"
-                style={{
-                  padding: '3vw'  // EDIT: Padding inside box (vw scales with screen)
-                }}
-              >
-                {playerSummary.avatar ? (
-                  <img 
-                    src={playerSummary.avatar} 
-                    alt={playerSummary.personaname}
-                    className="rounded-full border-2 border-blue-500 shadow-lg"
-                    style={{
-                      width: '8vw',    // EDIT: Avatar width (vw scales with screen)
-                      height: '8vw'    // EDIT: Avatar height
-                    }}
-                  />
-                ) : (
-                  <div 
-                    className="rounded-full bg-slate-800 flex items-center justify-center border-2 border-blue-500"
-                    style={{
-                      width: '8vw',    // EDIT: Avatar width (vw scales with screen)
-                      height: '8vw'    // EDIT: Avatar height
-                    }}
-                  >
-                    <User 
-                      className="text-gray-400"
-                      style={{
-                        width: '5vw',  // EDIT: Icon size (vw scales with screen)
-                        height: '5vw'  // EDIT: Icon size
-                      }}
-                    />
-                  </div>
-                )}
-                <div className="flex flex-col gap-1">
-                  <span 
+              {playerSummary.avatar ? (
+                <img 
+                  src={playerSummary.avatar} 
+                  alt={playerSummary.personaname}
+                  className="rounded-full border-2 border-blue-500 shadow-lg"
+                  style={{
+                    width: '80px',      // EDIT: Avatar width (px for consistent sizing)
+                    height: '80px',     // EDIT: Avatar height
+                    marginRight: '24px' // EDIT: Space between avatar and text (px)
+                  }}
+                />
+              ) : (
+                <div 
+                  className="rounded-full bg-slate-800 flex items-center justify-center border-2 border-blue-500"
+                  style={{
+                    width: '80px',      // EDIT: Avatar width (px for consistent sizing)
+                    height: '80px',     // EDIT: Avatar height
+                    marginRight: '24px' // EDIT: Space between avatar and text (px)
+                  }}
+                >
+                  <User 
                     className="text-gray-400"
                     style={{
-                      fontSize: '1.7vw'  // EDIT: "Player" label text (vw scales with screen)
+                      width: '40px',  // EDIT: Icon size (px for consistent sizing)
+                      height: '40px'
                     }}
-                  >
-                    Player
-                  </span>
-                  <span 
-                    className="font-semibold text-white"
-                    style={{
-                      fontSize: '2vw'  // EDIT: Player name text (vw scales with screen)
-                    }}
-                  >
-                    {playerSummary.personaname}
-                  </span>
+                  />
                 </div>
+              )}
+              <div className="flex flex-col">
+                <span 
+                  className="text-gray-400"
+                  style={{
+                    fontSize: '18px',      // EDIT: "Player" label text (px for consistent sizing)
+                    marginBottom: '4px'
+                  }}
+                >
+                  Player
+                </span>
+                <span 
+                  className="font-semibold text-white"
+                  style={{
+                    fontSize: '20px'  // EDIT: Player name text (px for consistent sizing)
+                  }}
+                >
+                  {playerSummary.personaname}
+                </span>
               </div>
             </div>
           )}
