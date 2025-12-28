@@ -1,6 +1,5 @@
 "use strict";
 
-// Add WebSocket import for Node.js environment
 import WebSocket from 'ws';
 
 const CONSTANTS = {
@@ -24,7 +23,6 @@ export function lanyard(opts: LanyardOptions): WebSocket | Promise<any> {
     if (opts.socket) {
         if (!opts.onPresenceUpdate) throw new Error("Specify onPresenceUpdate callback");
         
-        // Remove browser check - WebSocket is available via 'ws' package in Node.js
         const socket = new WebSocket(CONSTANTS.WEBSOCKET_URL);
         const subscription = typeof opts.userId === "string" ? "subscribe_to_id" : "subscribe_to_ids";
         let heartbeat: ReturnType<typeof setInterval> | null = null;
@@ -49,7 +47,6 @@ export function lanyard(opts: LanyardOptions): WebSocket | Promise<any> {
         });
         
         socket.addEventListener("message", (event: WebSocket.MessageEvent) => {
-            // In Node.js WebSocket, data might be a Buffer
             const rawData = event.data;
             const data = typeof rawData === 'string' 
                 ? rawData 

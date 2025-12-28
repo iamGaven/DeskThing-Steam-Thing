@@ -12,8 +12,7 @@ interface ActiveGamePageProps {
 const ActiveGamePage: React.FC<ActiveGamePageProps> = ({ 
   connectionInfo, 
   playerSummary,
-  gameSession,
-  DeskThing 
+  gameSession 
 }) => {
   const [tick, setTick] = useState(0);
   const [baseElapsedSeconds, setBaseElapsedSeconds] = useState(0);

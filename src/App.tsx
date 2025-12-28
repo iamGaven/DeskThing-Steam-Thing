@@ -83,7 +83,6 @@ const App: React.FC = () => {
       
       setConnectionInfo(data.payload);
       
-      // Mark initial check as complete once we get connection status
       if (!initialCheckComplete) {
         setInitialCheckComplete(true);
       }
@@ -115,11 +114,9 @@ const App: React.FC = () => {
         difference: data?.payload?.startTime ? (Date.now() - data?.payload?.startTime) : 'N/A'
       });
       
-      // Payload can be null when user stops playing
       setGameSession(data.payload);
       
-      // If this is the first game session we receive and we're still loading,
-      // mark initial check as complete
+
       if (!initialCheckComplete) {
         console.log("=== APP: MARKING INITIAL CHECK AS COMPLETE ===");
         setInitialCheckComplete(true);
@@ -140,26 +137,19 @@ const App: React.FC = () => {
       setSettings(data.payload);
     });
 
-    // Request initial status
     console.log("=== APP: REQUESTING INITIAL STATUS ===");
     DeskThing.send({ type: 'get', request: 'status' });
     
-    // Subscribe to player summary updates (Steam profile - still needs polling)
     console.log("=== APP: SUBSCRIBING TO PLAYER SUMMARY ===");
     DeskThing.send({ type: 'subscribe', request: 'player-summary' });
     
-    // Request current game session if there is one
     if (!hasRequestedSession.current) {
       console.log("=== APP: REQUESTING CURRENT GAME SESSION ===");
       DeskThing.send({ type: 'get', request: 'gameSession' });
       hasRequestedSession.current = true;
     }
+
     
-    // Game tracking via Lanyard is now AUTOMATIC via WebSocket heartbeat!
-    // Every ~30 seconds Lanyard sends presence updates automatically
-    // No polling or subscription needed - it's push-based!
-    
-    // Timeout if no response - consider initial check complete after 3 seconds
     setTimeout(() => {
       if (!invalid && !initialCheckComplete) {
         console.warn("=== APP: NO GAME SESSION RESPONSE WITHIN 3 SECONDS - PROCEEDING ===");
@@ -172,7 +162,6 @@ const App: React.FC = () => {
       console.log("=== APP: CLEANING UP LISTENERS ===");
       invalid = true;
       
-      // Unsubscribe from player summary
       DeskThing.send({ type: 'unsubscribe', request: 'player-summary' });
       
       removeStatusListener();
@@ -180,9 +169,8 @@ const App: React.FC = () => {
       removeGameSessionListener();
       removeSettingsListener();
     };
-  }, []); // Empty dependency array - only run once on mount
+  }, []); 
 
-  // THIS IS A SEPARATE useEffect - Handle page visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
       console.log("=== VISIBILITY CHANGE ===", {
@@ -193,11 +181,9 @@ const App: React.FC = () => {
       if (!document.hidden && !isDev) {
         console.log("=== APP: PAGE BECAME VISIBLE - RE-CHECKING GAME SESSION ===");
         
-        // Request game session WITHOUT showing loading screen
         console.log("=== APP: SENDING gameSession REQUEST ===");
         DeskThing.send({ type: 'get', request: 'gameSession' });
         
-        // Also request status
         DeskThing.send({ type: 'get', request: 'status' });
       }
     };
@@ -211,10 +197,8 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Determine which page to show based on game session
   const hasActiveGame = gameSession && gameSession.gameId;
 
-  // Loading state - only show while we're waiting for initial data
   if (isLoading || !initialCheckComplete) {
     return (
       <div className="w-screen h-screen bg-slate-900 flex justify-center items-center overflow-hidden">
@@ -223,8 +207,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Route to appropriate page based on game session
-  // If there's an active game on startup, go straight to ActiveGamePage
   return (
     <div className="w-screen h-screen">
       {hasActiveGame ? (

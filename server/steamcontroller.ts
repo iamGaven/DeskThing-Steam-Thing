@@ -10,8 +10,6 @@ import {
   RecentlyPlayedGame
 } from "./types";
 
-// Import the Lanyard library function
-// Assuming it's available as a global or imported module
 import type WebSocket from 'ws';
 
 class SteamController {
@@ -22,26 +20,18 @@ class SteamController {
   private steamApi: any | null = null;
   private autoConnect: boolean = true;
   private maxLogs: number = 100;
-  private pollInterval: number = 30000; // 30 seconds default for Steam profile
+  private pollInterval: number = 30000; 
   private connectionStatus: ConnectionStatus = 'disconnected';
   private lastConnected: number | null = null;
   private lastError: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   
   private logs: LogEntry[] = [];
-  
-  // Tracked Steam ID and Discord ID
   private trackedSteamId: string = "";
-  private discordUserId: string = ""; // Discord ID for Lanyard
-  
-  // Lanyard WebSocket
+  private discordUserId: string = ""; 
   private lanyardSocket: WebSocket | null = null;
   private lanyardConnected: boolean = false;
-  
-  // Active subscriptions
   private activeSubscriptions: Set<'player-summary'> = new Set();
-  
-  // Game tracking
   private currentGameSession: GameSession | null = null;
   private lastGameId: string | null = null;
 
@@ -69,14 +59,12 @@ class SteamController {
     this.discordUserId = discordId;
     this.addLog('info', `Discord User ID set: ${discordId}`);
     
-    // If already connected, reconnect Lanyard with new ID
     if (this.lanyardConnected) {
       this.disconnectLanyard();
       this.connectLanyard();
     }
   }
 
-  // Subscribe to player summary updates
   public subscribe(dataType: 'player-summary') {
     const wasEmpty = this.activeSubscriptions.size === 0;
     this.activeSubscriptions.add(dataType);
@@ -88,7 +76,6 @@ class SteamController {
     }
   }
 
-  // Unsubscribe from player summary updates
   public unsubscribe(dataType: 'player-summary') {
     this.activeSubscriptions.delete(dataType);
     
@@ -99,7 +86,6 @@ class SteamController {
     }
   }
 
-  // Clear all subscriptions
   public clearSubscriptions() {
     this.activeSubscriptions.clear();
     this.stopPolling();
@@ -145,7 +131,6 @@ class SteamController {
     }
   }
 
-  // Connect to Lanyard using the js-lanyard library
   private async connectLanyard() {
     if (!this.discordUserId) {
       console.log('warn', 'No Discord User ID configured for Lanyard');
@@ -160,7 +145,6 @@ class SteamController {
     try {
       console.log('info', 'Connecting to Lanyard WebSocket...');
       
-      // Dynamically import the lanyard module
       const lanyardModule = await import('./lanyard.js');
       const lanyardFn = lanyardModule.lanyard;
       
@@ -168,7 +152,6 @@ class SteamController {
         throw new Error('Lanyard function not found in module');
       }
 
-      // Use the lanyard library's websocket connection
       this.lanyardSocket = lanyardFn({
         userId: this.discordUserId,
         socket: true,
@@ -180,14 +163,12 @@ class SteamController {
       this.lanyardConnected = true;
       console.log('success', 'Connected to Lanyard WebSocket');
 
-      // Handle socket close
       if (this.lanyardSocket) {
         this.lanyardSocket.addEventListener('close', () => {
           console.log('warn', 'Lanyard WebSocket closed');
           this.lanyardConnected = false;
           this.lanyardSocket = null;
           
-          // Attempt reconnection if still supposed to be connected
           if (this.connectionStatus === 'connected') {
             setTimeout(() => {
              console.log('info', 'Attempting to reconnect to Lanyard...');
@@ -203,7 +184,6 @@ class SteamController {
     }
   }
 
-  // Disconnect from Lanyard
   private disconnectLanyard() {
     if (this.lanyardSocket) {
       this.lanyardSocket.close();
@@ -213,14 +193,12 @@ class SteamController {
     }
   }
 
-  // In steamcontroller.ts - Update handleLanyardPresence
   private handleLanyardPresence(presenceData: any) {
     console.log('=== LANYARD HEARTBEAT ===', new Date().toISOString());
     
     const data = presenceData.data || presenceData;
     const activities = data.activities || [];
     
-    // Log ALL activities for debugging
     console.log('All activities:', JSON.stringify(activities, null, 2));
     
     const gameActivity = activities.find((activity: any) => activity.type === 0);
@@ -259,7 +237,6 @@ class SteamController {
     }
   }
 
-  // Add this helper function at the top of the class, after the constructor:
   private async fetchImageAsBase64(url: string): Promise<string | null> {
     try {
       this.addLog('info', `Fetching game image from: ${url}`);
@@ -278,55 +255,53 @@ class SteamController {
     }
     return null;
   }
-
-  // Start game session from Lanyard activity
   private async startGameSessionFromLanyard(activity: any) {
     const gameName = activity.name;
     const gameId = activity.application_id || gameName;
+    const platform = activity.platform; // Get platform from activity
     
-    // Get start time from Discord (in milliseconds)
     const startTime = activity.timestamps?.start || Date.now();
     
     console.log('=== CREATING GAME SESSION ===', {
       gameId,
       gameName,
+      platform,
       startTime,
       startTimeDate: new Date(startTime).toISOString()
     });
 
-    // Fetch game icon from Steam API
-    this.addLog('info', 'Fetching game image from Steam...');
-    const gameIconBase64 = await this.getGameImage();
+    this.addLog('info', `Fetching game image for platform: ${platform || 'Steam'}`);
+    const gameIconUrl = await this.getGameImage(platform);
 
-    // Send session with base64 image
     this.currentGameSession = {
       gameId: gameId,
       gameName: gameName,
-      gameIconUrl: gameIconBase64, // Contains base64 data URL or null
+      gameIconUrl: gameIconUrl,
       startTime: startTime,
       serverTime: Date.now(),
       elapsedTime: 0
     };
 
-    console.log('Sending session to client with base64 image');
+    console.log('Sending session to client with game image');
     this.sendGameSession();
-    this.addLog('success', `Started tracking: ${gameName}`);
+    this.addLog('success', `Started tracking: ${gameName} on ${platform || 'Steam'}`);
   }
 
-  // Update game session from activity
   private async updateGameSessionFromActivity(activity: any) {
     if (!this.currentGameSession) return;
 
-    // Only fetch icon if we don't have one yet
     if (!this.currentGameSession.gameIconUrl) {
-      this.addLog('info', 'Fetching game image from Steam...');
-      const steamImage = await this.getGameImage();
-      if (steamImage) {
-        this.currentGameSession.gameIconUrl = steamImage;
+      const platform = activity.platform;
+      this.addLog('info', `Fetching game image for platform: ${platform || 'Steam'}`);
+      const gameImage = await this.getGameImage(platform);
+      if (gameImage) {
+        this.currentGameSession.gameIconUrl = gameImage;
         this.sendGameSession();
       }
     }
   }
+
+
   public async connect() {
     if (!this.steamApiKey) {
       this.addLog('error', 'No Steam API key configured. Please add your Steam API key in settings');
@@ -346,23 +321,19 @@ class SteamController {
     this.addLog('info', 'Initializing Steam API connection...');
 
     try {
-      // Dynamically import the Steam API library
       const SteamApiModule: any = await import('@varandas/steam');
       
-      // Handle double default export from the bundled module
       const SteamApiClass = SteamApiModule.default?.default || SteamApiModule.default;
       
       if (!SteamApiClass || typeof SteamApiClass !== 'function') {
         throw new Error('Could not find Steam API constructor in module');
       }
       
-      // Initialize Steam API client
       this.steamApi = new SteamApiClass(this.steamApiKey);
       
-      // Test the connection with a simple API call
       const userService = this.steamApi.getUserService();
       await userService.getPlayerSummaries({
-        steamids: ['76561197960435530'] // Gabe Newell's Steam ID for testing
+        steamids: ['76561197960435530'] 
       });
 
       this.connectionStatus = 'connected';
@@ -371,14 +342,12 @@ class SteamController {
       this.addLog('success', 'Successfully connected to Steam API');
       this.sendConnectionStatus();
 
-      // Connect to Lanyard for game tracking
       if (this.discordUserId) {
         await this.connectLanyard();
       } else {
         this.addLog('warn', 'No Discord User ID set - game tracking via Lanyard unavailable');
       }
 
-      // Start polling if we have active subscriptions (for Steam profile only)
       if (this.activeSubscriptions.size > 0) {
         this.startPolling();
       }
@@ -401,7 +370,6 @@ class SteamController {
     this.addLog('info', 'Disconnected from Steam API');
     this.sendConnectionStatus();
     
-    // Stop any active game session
     if (this.currentGameSession) {
       this.stopGameSession();
     }
@@ -524,10 +492,8 @@ class SteamController {
       }
     };
 
-    // Initial poll
     poll();
     
-    // Set up interval
     this.pollTimer = setInterval(poll, this.pollInterval);
   }
 
@@ -539,7 +505,6 @@ class SteamController {
     }
   }
 
-  // Request player summary (profile data only, not game info)
   public async requestPlayerSummary() {
     if (!this.steamApi || !this.trackedSteamId) {
       this.addLog('warn', 'Cannot request player summary - not connected or no Steam ID');
@@ -555,7 +520,6 @@ class SteamController {
       if (players && players.length > 0) {
         const player = players[0];
         
-        // Fetch and convert avatar to base64
         if (player.avatarfull || player.avatarmedium || player.avatar) {
           const avatarUrl = player.avatarfull || player.avatarmedium || player.avatar;
           try {
@@ -563,7 +527,6 @@ class SteamController {
             if (response.ok) {
               const arrayBuffer = await response.arrayBuffer();
               const base64 = Buffer.from(arrayBuffer).toString('base64');
-              // Replace the avatar URLs with base64 data URLs
               player.avatar = `data:image/jpeg;base64,${base64}`;
               player.avatarmedium = player.avatar;
               player.avatarfull = player.avatar;
@@ -582,85 +545,108 @@ class SteamController {
         
         this.addLog('info', `Player: ${player.personaname}`);
         
-        // Note: Game tracking is now handled by Lanyard, not Steam API
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.addLog('error', `Failed to request player summary: ${errorMsg}`);
     }
   }
-  public async getGameImage(): Promise<string | null> {
-    if (!this.steamApi || !this.trackedSteamId) {
-      this.addLog('warn', 'Cannot get game image - not connected or no Steam ID');
-      return null;
+
+  
+private async readLocalImageAsBase64(fileName: string): Promise<string | null> {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    const os = require('os');
+    
+    const appData = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+    const imagePath = path.join(appData, "deskthing", "apps", "steamthing", "client", fileName);
+    
+    this.addLog('info', `Reading local image from: ${imagePath}`);
+    
+    const imageBuffer = await fs.readFile(imagePath);
+    const base64 = imageBuffer.toString('base64');
+    const dataUrl = `data:image/png;base64,${base64}`;
+    
+    this.addLog('success', `Successfully converted local image to base64 (${Math.floor(base64.length / 1024)}KB)`);
+    return dataUrl;
+  } catch (err) {
+    this.addLog('error', `Failed to read local image: ${err}`);
+    return null;
+  }
+}
+
+public async getGameImage(platform?: string): Promise<string | null> {
+  if (platform) {
+    const platformLower = platform.toLowerCase();
+    
+    if (platformLower === 'xbox') {
+      this.addLog('info', 'Xbox platform detected - using Xbox logo');
+      return await this.readLocalImageAsBase64('xbox.png');
     }
+    
+    if (platformLower === 'playstation') {
+      this.addLog('info', 'PlayStation platform detected - using PlayStation logo');
+      return await this.readLocalImageAsBase64('playstation.png');
+    }
+  }
+  
+  if (!this.steamApi || !this.trackedSteamId) {
+    this.addLog('warn', 'Cannot get game image - not connected or no Steam ID');
+    return null;
+  }
 
-    try {
-      // Get player summary to find currently playing game
-      const userService = this.steamApi.getUserService();
-      const players = await userService.getPlayerSummaries({
-        steamids: [this.trackedSteamId]
-      });
+  try {
+    const userService = this.steamApi.getUserService();
+    const players = await userService.getPlayerSummaries({
+      steamids: [this.trackedSteamId]
+    });
 
-      if (players && players.length > 0) {
-        const player = players[0];
-        
-        // Check if player is in a game
-        if (player.gameid) {
-          const currentAppId = player.gameid;
-          this.addLog('info', `Found currently playing game with app ID: ${currentAppId}`);
-          
-          // Get recently played games to find the icon URL
-          const playerService = this.steamApi.getPlayerService();
-          const recentGamesResponse = await playerService.getRecentlyPlayedGames({
-            steamid: this.trackedSteamId,
-            count: 10
-          });
-
-          if (recentGamesResponse?.response?.games) {
-            const games = recentGamesResponse.response.games;
-            
-            // Find the matching game in recently played
-            const matchingGame = games.find((game: any) => game.appid === parseInt(currentAppId));
-            
-            if (matchingGame && matchingGame.img_icon_url) {
-              // Build the Steam CDN URL using the img_icon_url hash
-              // Format: https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{appid}/{hash}.jpg
-              const imageUrl = `https://media.steampowered.com/steamcommunity/public/images/apps/${matchingGame.appid}/${matchingGame.img_icon_url}.jpg`;
-              
-              this.addLog('info', `Fetching game icon from Steam CDN: ${matchingGame.name}`);
-              
-              // Fetch and convert to base64
-              const gameImageBase64 = await this.fetchImageAsBase64(imageUrl);
-              
-              if (gameImageBase64) {
-                this.addLog('success', `Successfully fetched game image for: ${matchingGame.name}`);
-                return gameImageBase64;
-              }
-            } else {
-              this.addLog('warn', `Game with app ID ${currentAppId} not found in recently played games`);
-            }
-          }
-        } else {
-          this.addLog('info', 'Player is not currently in a game');
-        }
-      }
+    if (players && players.length > 0) {
+      const player = players[0];
       
-      return null;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      this.addLog('error', `Failed to get game image: ${errorMsg}`);
-      return null;
+      if (player.gameid) {
+        const currentAppId = player.gameid;
+        this.addLog('info', `Found currently playing game with app ID: ${currentAppId}`);
+        
+        const playerService = this.steamApi.getPlayerService();
+        const recentGamesResponse = await playerService.getRecentlyPlayedGames({
+          steamid: this.trackedSteamId,
+          count: 10
+        });
+
+        if (recentGamesResponse?.response?.games) {
+          const games = recentGamesResponse.response.games;
+          const matchingGame = games.find((game: any) => game.appid === parseInt(currentAppId));
+          
+          if (matchingGame && matchingGame.img_icon_url) {
+            const imageUrl = `https://media.steampowered.com/steamcommunity/public/images/apps/${matchingGame.appid}/${matchingGame.img_icon_url}.jpg`;
+            this.addLog('info', `Fetching game icon from Steam CDN: ${matchingGame.name}`);
+            
+            const gameImageBase64 = await this.fetchImageAsBase64(imageUrl);
+            
+            if (gameImageBase64) {
+              this.addLog('success', `Successfully fetched game image for: ${matchingGame.name}`);
+              return gameImageBase64;
+            }
+          } else {
+            this.addLog('warn', `Game with app ID ${currentAppId} not found in recently played games`);
+          }
+        }
+      } else {
+        this.addLog('info', 'Player is not currently in a game');
+      }
     }
+    
+    return null;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    this.addLog('error', `Failed to get game image: ${errorMsg}`);
+    return null;
   }
-  // Update the current game session (elapsed time)
-  private updateGameSession() {
-    if (!this.currentGameSession) return;
+}
 
-    this.currentGameSession.elapsedTime = Date.now() - this.currentGameSession.startTime;
-  }
 
-  // Stop the current game session
   private stopGameSession() {
     if (this.currentGameSession) {
       const finalElapsed = Date.now() - this.currentGameSession.startTime;
@@ -674,7 +660,6 @@ class SteamController {
     }
   }
 
-  // Get recently played games (still using Steam API)
   public async getRecentlyPlayedGames(): Promise<RecentlyPlayedGame[]> {
     if (!this.steamApi || !this.trackedSteamId) {
       this.addLog('warn', 'Cannot get recently played games - not connected or no Steam ID');

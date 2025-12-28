@@ -11,12 +11,10 @@ const DeskThing = createDeskThing<GenericTransitData, ToClientData>();
 
 console.log("=== INITIALIZING STEAM API APP ===");
 
-// Track settings initialization state
 let settingsInitialized = false;
 let initialSettingsApplied = false;
 let lastKnownSettings: any = null;
 
-// Replace your DeskThing.on("get", ...) handler with this:
 
 DeskThing.on("get", async (data: any) => {
   console.log("=== GET REQUEST RECEIVED ===");
@@ -51,7 +49,6 @@ DeskThing.on("get", async (data: any) => {
   }
 });
 
-// Handle subscription requests
 DeskThing.on("subscribe", (data: any) => {
   const dataType = data?.request || data?.payload?.request;
   
@@ -74,7 +71,6 @@ DeskThing.on("unsubscribe", (data: any) => {
   }
 });
 
-// Handle connection control from client
 DeskThing.on("connect", () => {
   console.log("Connect request from client");
   steamController.connect();
@@ -90,13 +86,11 @@ DeskThing.on("clearLogs", () => {
   steamController.clearLogs();
 });
 
-// Handle player summary request
 DeskThing.on("requestPlayerSummary", () => {
   console.log("Request player summary");
   steamController.requestPlayerSummary();
 });
 
-// Helper to extract Steam-related settings only
 function extractSteamSettings(settings: any) {
   return {
     steamApiKey: settings.steamApiKey?.value ?? settings.steamApiKey,
@@ -108,7 +102,6 @@ function extractSteamSettings(settings: any) {
   };
 }
 
-// Helper to check if Steam settings changed
 function steamSettingsChanged(oldSettings: any, newSettings: any): boolean {
   if (!oldSettings || !newSettings) return true;
   
@@ -118,7 +111,6 @@ function steamSettingsChanged(oldSettings: any, newSettings: any): boolean {
   return JSON.stringify(oldSteam) !== JSON.stringify(newSteam);
 }
 
-// Handle settings updates
 DeskThing.on(DESKTHING_EVENTS.SETTINGS, (settings) => {
   console.log("=== SETTINGS UPDATE RECEIVED ===");
   
@@ -129,19 +121,15 @@ DeskThing.on(DESKTHING_EVENTS.SETTINGS, (settings) => {
 
   const currentSettings = settings.payload;
 
-  // Always forward settings to client for UI updates
   console.log("Forwarding settings to client");
-  // @ts-ignore - Custom settings event
   DeskThing.send({ type: 'settings', payload: currentSettings });
 
-  // Apply settings only once on initialization or when they actually change
   if (!initialSettingsApplied) {
     console.log("Applying initial Steam settings");
     steamController.updateSettings(currentSettings);
     initialSettingsApplied = true;
     lastKnownSettings = currentSettings;
   } else {
-    // Check if Steam settings actually changed
     const settingsChanged = steamSettingsChanged(lastKnownSettings, currentSettings);
     
     if (settingsChanged) {
@@ -218,13 +206,11 @@ const start = async () => {
   steamController.setDeskThing(DeskThing);
   await setupSettings();
   
-  // Start controller but don't auto-connect yet
-  // Wait for settings to be applied first
+
   console.log("Steam controller ready, waiting for settings...");
   
   console.log("=== STEAM API APP STARTED SUCCESSFULLY ===");
   
-  // Send initial status after a delay
   setTimeout(() => {
     console.log("Sending initial status to client");
     const status = steamController.getStatus();
@@ -239,13 +225,11 @@ const stop = async () => {
   console.log("=== STOPPING STEAM API APP ===");
   await steamController.stop();
   
-  // Reset state
   settingsInitialized = false;
   initialSettingsApplied = false;
   lastKnownSettings = null;
 };
 
-// Register event handlers
 DeskThing.on(DESKTHING_EVENTS.STOP, stop);
 DeskThing.on(DESKTHING_EVENTS.START, start);
 
